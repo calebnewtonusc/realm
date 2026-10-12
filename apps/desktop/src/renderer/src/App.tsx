@@ -30,7 +30,7 @@ import { getBrowserBridges } from "./panes/browser/browser-client";
 import { persistBrowserPages } from "./panes/browser/persist-pages";
 import { Onboarding } from "./components/Onboarding";
 import { StoreContext, createAppStore, useApp, useAppStore, type AppState } from "./state/store";
-import { Extensions } from "./extensions";
+import { Extensions, useHostQuiet } from "./extensions";
 import { sidebarHidden } from "./state/selectors";
 import { drawnShare, panelPlace } from "./state/view-room";
 import { useStore, type StoreApi } from "zustand";
@@ -163,6 +163,8 @@ function QuietBridge() {
   const lowPower = useApp((s) => s.lowPower);
   const windowActive = useApp((s) => s.windowActive);
   const setWindowActive = useApp((s) => s.setWindowActive);
+  // A host hiding the whole app (extensions.ts, setHostQuiet) counts as no attention too.
+  const hostQuiet = useHostQuiet();
 
   useEffect(() => {
     const active = () => setWindowActive(true);
@@ -182,10 +184,10 @@ function QuietBridge() {
   }, [setWindowActive]);
 
   useEffect(() => {
-    const quiet = lowPower || !windowActive;
+    const quiet = lowPower || !windowActive || hostQuiet;
     if (quiet) document.documentElement.setAttribute("data-quiet", lowPower ? "always" : "unfocused");
     else document.documentElement.removeAttribute("data-quiet");
-  }, [lowPower, windowActive]);
+  }, [lowPower, windowActive, hostQuiet]);
   return null;
 }
 
