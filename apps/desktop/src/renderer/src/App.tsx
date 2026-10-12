@@ -30,6 +30,7 @@ import { getBrowserBridges } from "./panes/browser/browser-client";
 import { persistBrowserPages } from "./panes/browser/persist-pages";
 import { Onboarding } from "./components/Onboarding";
 import { StoreContext, createAppStore, useApp, useAppStore, type AppState } from "./state/store";
+import { Extensions } from "./extensions";
 import { sidebarHidden } from "./state/selectors";
 import { drawnShare, panelPlace } from "./state/view-room";
 import { useStore, type StoreApi } from "zustand";
@@ -744,6 +745,8 @@ export function App() {
       <Toasts />
       {/* Select in Realm: the element picker over this window, above everything it can point at. */}
       <AppPickerBridge />
+      {/* What a host registered (extensions.ts): nothing in Realm's own window. */}
+      <Extensions />
     </StoreContext.Provider>
   );
 }
