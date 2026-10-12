@@ -586,6 +586,8 @@ export function Composer({ session, status, gitInfo, onOpenDiff, draft, onDraftC
   /** The + menu's Select in Realm (app-pick/): put the in-app element picker up for this prompter. */
   selectInRealm?: { onSelect: () => void; kbd?: string };
 }) {
+  /* `data-session-id` on the textarea below: a host that puts text in a prompter (the Chewbacca
+     glass's talk key and Reply) finds THIS session's, never the first one in the window. */
   const ta = useRef<HTMLTextAreaElement>(null);
   const running = status === "running" || status === "waiting_permission";
   const kind = session.agentKind;
@@ -1403,7 +1405,7 @@ export function Composer({ session, status, gitInfo, onOpenDiff, draft, onDraftC
               <span className="visually-hidden">Press Tab to fill in this suggested prompt.</span>
             </div>
           )}
-          <textarea ref={ta} className="composer-input" aria-label="Message" placeholder={hint ? "" : placeholder} rows={1}
+          <textarea ref={ta} className="composer-input" data-session-id={session.id} aria-label="Message" placeholder={hint ? "" : placeholder} rows={1}
             value={draft} onChange={(e) => { onDraftChange(e.target.value); setCaret(e.target.selectionStart ?? e.target.value.length); setSelEnd(e.target.selectionEnd ?? e.target.value.length); setMentionActive(0); setSlashActive(0); setHotChip(null); }}
             onSelect={(e) => { setCaret(e.currentTarget.selectionStart ?? 0); setSelEnd(e.currentTarget.selectionEnd ?? 0); }}
             onClick={onClickChip} onMouseMove={onHoverChip} onMouseLeave={leaveChip}
