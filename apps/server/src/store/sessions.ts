@@ -249,6 +249,47 @@ export function replyLine(text: string): string | null {
   return null;
 }
 
+/** How many of a session's newest replies `leftOff` reads back through before it gives up. A turn
+ *  that prays, works, and signs off writes three replies, so three is the floor; five is that plus a
+ *  turn that only said "on it". Guessed from one user's 17 sessions on 10/13, never swept. */
+export const LEFT_OFF_REPLIES = 5;
+
+/** A paragraph that opens or closes a turn without saying anything about the work: an invocation
+ *  ending "Amen", or a sign-off of three words or fewer ("Peace bro", "Done."). Measured 10/13 on one
+ *  user's sessions: every reply opened with a prayer, so the first line of 8 of 9 replies was the
+ *  prayer and the Sessions page said nothing about where any of them stood. */
+const NOT_THE_WORK = (para: string) => /\bAmen[.!]?\s*$/i.test(para) || para.split(/\s+/).filter((w) => /[a-z0-9]/i.test(w)).length <= 3;
+
+/**
+ * Where a session left off, for a row to say without opening it: the last paragraph of prose in its
+ * newest reply that is about the work, reading back through earlier replies (newest first, at most
+ * `LEFT_OFF_REPLIES`) when a reply holds only an opener or a sign-off. Agents end a turn on what they
+ * did and what is next, so the end of the reply is where the answer is; the first line is where the
+ * greeting is. Falls back to `replyLine` of the newest reply, so a row never goes blank that had a
+ * line before.
+ */
+export function leftOff(newestFirst: readonly string[]): string | null {
+  for (const text of newestFirst.slice(0, LEFT_OFF_REPLIES)) {
+    const paras: string[] = [];
+    let fenced = false, cur: string[] = [];
+    for (const raw of text.split("\n")) {
+      const line = raw.trim();
+      if (line.startsWith("```")) { fenced = !fenced; continue; }
+      if (fenced) continue;
+      if (!line) { if (cur.length) paras.push(cur.join(" ")); cur = []; continue; }
+      cur.push(line);
+    }
+    if (cur.length) paras.push(cur.join(" "));
+    for (let i = paras.length - 1; i >= 0; i--) {
+      // Judged on the whole paragraph: a long prayer's "Amen" is past the cut `replyLine` makes.
+      const plain = paras[i]!.replace(/\*\*|__|`/g, "").trim();
+      const line = replyLine(paras[i]!);
+      if (line && !NOT_THE_WORK(plain)) return line;
+    }
+  }
+  return newestFirst.length ? replyLine(newestFirst[0]!) : null;
+}
+
 type EventRow = { seq: number; session_id: string; ts: number; type: string; payload_json: StoredPayload };
 
 export class SessionEventsStore {
@@ -354,17 +395,18 @@ export class SessionEventsStore {
     return null;
   }
   /**
-   * Where each of a space's sessions left off: the first line of its newest reply, for a list of them
-   * to say without opening any (`replyLine`). Null for a session that has not replied. One indexed
-   * look per session (`session_events_session`), never a read of a transcript.
+   * Where each of a space's sessions left off (`leftOff`), for a list of them to say without opening
+   * any. Null for a session that has not replied. One indexed look per session
+   * (`session_events_session`) for at most `LEFT_OFF_REPLIES` rows, never a read of a transcript.
    */
   lastReplies(spaceId: string): { sessionId: string; lastReply: string | null }[] {
-    const rows = this.db.prepare(`SELECT s.id AS session_id,
-        (SELECT ev.payload_json FROM session_events ev WHERE ev.session_id = s.id AND ev.type = 'assistant_text' ORDER BY ev.seq DESC LIMIT 1) AS payload
-      FROM sessions s WHERE s.space_id = ?`).all(spaceId) as { session_id: string; payload: StoredPayload | null }[];
-    return rows.map((r) => {
-      const text = (parsePayload(r.payload) as { text?: unknown } | undefined)?.text;
-      return { sessionId: r.session_id, lastReply: typeof text === "string" ? replyLine(text) : null };
+    const ids = this.db.prepare("SELECT id FROM sessions WHERE space_id = ?").all(spaceId) as { id: string }[];
+    const newest = this.db.prepare("SELECT payload_json FROM session_events WHERE session_id = ? AND type = 'assistant_text' ORDER BY seq DESC LIMIT ?");
+    return ids.map(({ id }) => {
+      const texts = (newest.all(id, LEFT_OFF_REPLIES) as { payload_json: StoredPayload }[])
+        .map((r) => (parsePayload(r.payload_json) as { text?: unknown } | undefined)?.text)
+        .filter((t): t is string => typeof t === "string");
+      return { sessionId: id, lastReply: leftOff(texts) };
     });
   }
   /** The newest persisted event of one type, or null. Skips rows that fail schema validation. */

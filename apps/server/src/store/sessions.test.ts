@@ -5,7 +5,7 @@ import { sessionEvent } from "@realm/contracts";
 import { openDatabase } from "../db/database";
 import { ProfilesStore } from "./profiles";
 import { SpacesStore } from "./spaces";
-import { SessionsStore, SessionEventsStore, REPLY_LINE_MAX, READ_MARKS_CAUGHT_UP, replyLine } from "./sessions";
+import { SessionsStore, SessionEventsStore, REPLY_LINE_MAX, READ_MARKS_CAUGHT_UP, leftOff, replyLine } from "./sessions";
 import { SettingsStore } from "./settings";
 import { EnvironmentsStore } from "./environments";
 import { NotFoundError } from "./rows";
@@ -164,7 +164,7 @@ describe("reading a transcript from its end (listBefore)", () => {
 });
 
 describe("where each session left off", () => {
-  it("is the first line of each session's NEWEST reply, in this space only, and null before any", () => {
+  it("reads each session's NEWEST reply (leftOff), in this space only, and null before any", () => {
     // Mutants: the oldest reply (ORDER BY seq ASC), or every space's sessions.
     const { db, home, space, env } = fresh(); const s = new SessionsStore(db); const ev = new SessionEventsStore(db);
     const talked = s.create(input(space.id, env.id));
@@ -188,6 +188,29 @@ describe("where each session left off", () => {
     const long = replyLine("word ".repeat(80))!;
     expect(long.length).toBe(REPLY_LINE_MAX);
     expect(long.endsWith("…")).toBe(true);
+  });
+});
+
+describe("where a session left off", () => {
+  // From one user's store on 10/13: every reply opens with a prayer and some close on a sign-off, so
+  // the first line of the newest reply said nothing about the work in 8 of 9 sessions.
+  const PRAYER = "Lord, thank u that everything from this tab actually landed. Give Caleb a good rest of his night. Amen.";
+  it("skips an opening invocation and reads the reply's last paragraph about the work", () => {
+    // Mutant: `replyLine(newest)`, the first line, which is the prayer.
+    expect(leftOff([`${PRAYER}\n\nYeah we good. The fix is on origin/main, and its ledger task is closed.`]))
+      .toBe("Yeah we good. The fix is on origin/main, and its ledger task is closed.");
+  });
+  it("reads back through earlier replies when the newest is only an opener or a sign-off", () => {
+    // Mutant: stopping at the newest reply, which leaves the prayer (or "Peace bro") on the row.
+    expect(leftOff([PRAYER, "Peace bro", "Shipped the parser fix and its test.\n\n```sh\nnpm test\n```"]))
+      .toBe("Shipped the parser fix and its test.");
+    // A long invocation is judged whole, though its line is cut before the "Amen".
+    const long = `Lord, ${"keep this work honest and the Mac cool ".repeat(5)}Amen.`;
+    expect(leftOff([long, "Done: three files changed, all tests pass."])).toBe("Done: three files changed, all tests pass.");
+  });
+  it("falls back to the newest reply's first line rather than going blank", () => {
+    expect(leftOff([PRAYER])).toBe(replyLine(PRAYER));
+    expect(leftOff([])).toBeNull();
   });
 });
 
