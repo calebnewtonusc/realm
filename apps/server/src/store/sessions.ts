@@ -270,20 +270,21 @@ const NOT_THE_WORK = (para: string) => /\bAmen[.!]?\s*$/i.test(para) || para.spl
  */
 export function leftOff(newestFirst: readonly string[]): string | null {
   for (const text of newestFirst.slice(0, LEFT_OFF_REPLIES)) {
-    const paras: string[] = [];
+    // Paragraphs as their lines: judged whole, shown as `replyLine` shows a reply (its first line).
+    const paras: string[][] = [];
     let fenced = false, cur: string[] = [];
     for (const raw of text.split("\n")) {
       const line = raw.trim();
       if (line.startsWith("```")) { fenced = !fenced; continue; }
       if (fenced) continue;
-      if (!line) { if (cur.length) paras.push(cur.join(" ")); cur = []; continue; }
+      if (!line) { if (cur.length) paras.push(cur); cur = []; continue; }
       cur.push(line);
     }
-    if (cur.length) paras.push(cur.join(" "));
+    if (cur.length) paras.push(cur);
     for (let i = paras.length - 1; i >= 0; i--) {
       // Judged on the whole paragraph: a long prayer's "Amen" is past the cut `replyLine` makes.
-      const plain = paras[i]!.replace(/\*\*|__|`/g, "").trim();
-      const line = replyLine(paras[i]!);
+      const plain = paras[i]!.join(" ").replace(/\*\*|__|`/g, "").trim();
+      const line = replyLine(paras[i]!.join("\n"));
       if (line && !NOT_THE_WORK(plain)) return line;
     }
   }
