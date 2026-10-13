@@ -5983,14 +5983,6 @@ textarea.question-text-input { height: auto; min-height: 72px; padding: 8px 0; r
    page that has no bars, and the panes' ground is the one the translucency is calibrated to read on. */
 .app[data-first-run] > .main { border-left: 0; background: var(--pane-ground); }
 .app[data-first-run] > .main::before, .app[data-first-run] > .main::after { display: none; }
-/* ── Frameless: a host that draws its own frame (`window.realm.frameless`) ────────────────────────
-   The Chewbacca glass serves this renderer without a window. The rail, the sidebar column, the lead
-   and the trail are a window's, so they are away for good, as first run puts them away for a while,
-   and the panes stand on their own ground. */
-.app[data-frameless] > .app-rail, .app[data-frameless] > .sidebar,
-.app[data-frameless] > .window-lead, .app[data-frameless] > .window-trail { display: none; }
-.app[data-frameless] > .main { border-left: 0; background: var(--pane-ground); }
-.app[data-frameless] > .main::before, .app[data-frameless] > .main::after { display: none; }
 .onboarding-stage {
   position: relative; flex: 1; min-height: 0; overflow: auto; display: grid; justify-items: center;
   align-content: safe center; padding: 56px 24px 40px; --fade-top-h: 24px; --fade-h: 40px;

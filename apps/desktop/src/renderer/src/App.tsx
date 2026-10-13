@@ -71,13 +71,10 @@ export function AppShell() {
      — the destinations need one, and the list has nothing in it — so while onboarding is up they are
      away, and what someone sees on their first launch is the one page that is asking them something. */
   const firstRun = useApp((s) => s.booted && s.spaces.length === 0);
-  /* A host that frames the app itself (`window.realm.frameless`, the Chewbacca glass) gets the panes
-     alone: the same move first run makes, for the whole life of the window. */
-  const frameless = window.realm?.frameless === true;
   return (
     <div className="app" data-sidebar-collapsed={collapsed || undefined} data-sidebar-folded={folded || undefined}
-      data-sidebar-cut={cut || undefined} data-first-run={firstRun || undefined} data-frameless={frameless || undefined}
-      style={{ "--sidebar-w": `${frameless ? 0 : width}px` } as CSSProperties}>
+      data-sidebar-cut={cut || undefined} data-first-run={firstRun || undefined}
+      style={{ "--sidebar-w": `${width}px` } as CSSProperties}>
       <Rail />
       {/* Mounted whether or not it is showing, so collapsing is a MOVE rather than an unmount —
           there is no exit animation for an element React has already removed. `inert` is what makes

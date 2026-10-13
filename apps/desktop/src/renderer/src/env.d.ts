@@ -44,10 +44,6 @@ interface Window {
     closeMenu?(): Promise<void>;
     /** REALM_HTML_MENUS=1: the app's `Menu` draws its own, for a live script to drive over CDP. */
     htmlMenus?: boolean;
-    /** A host that draws its own frame around the app (the Chewbacca glass, which serves this
-     *  renderer without Electron): the rail, the sidebar column, the window lead and trail are a
-     *  window's, and that host is not one (`.app[data-frameless]`). Absent in Realm's own window. */
-    frameless?: boolean;
     /** `process.platform` from the preload. Absent in jsdom, which has no bridge — every reader has
      *  to treat "unknown" as "no window material" rather than guessing macOS. */
     platform?: string;
