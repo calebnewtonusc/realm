@@ -2168,6 +2168,10 @@ export type AppState = TeamSlice & LabSlice & {
    *  conversation, so the superseded answer stays in the transcript and in the agent's context.
    *  A no-op while a turn is live, and a no-op when the user has not sent anything yet. */
   retryLastTurn(id: string): Promise<void>;
+  /** The last question of a session whose agent cannot answer it (at its limit, signed out), put to
+   *  another agent: a new session in the same space and checkout, opened, with that message sent. The
+   *  failed session is left as it was, so nothing it holds is lost. */
+  askAnotherAgent(id: string, agentKind: AgentKind): Promise<void>;
   interruptSession(id: string): Promise<void>;
   /** Write this session's transcript out as Markdown, to a file the USER names in a native dialog.
    *  Resolves the saved path, or null when they cancelled — and null too where there is no bridge to
@@ -6187,6 +6191,15 @@ export function createAppStore(api: Api): StoreApi<AppState> {
         const msg = lastUserMessage(t); if (!msg) return;
         const mentions = mentionIds(msg.text, new Set(mentionableIds(id)));
         await api.sendMessage(id, msg.text, msg.attachments ?? [], mentions);
+      },
+      async askAnotherAgent(id, agentKind) {
+        const from = get().sessions[id]; const t = get().transcripts[id]?.t;
+        const msg = t ? lastUserMessage(t) : null;
+        if (!from || !msg) return;
+        const model = usableModel(agentKind, get().lastModels[agentKind] ?? null, get().agentProbe);
+        const sid = await makeSession({ agentKind, model, spaceId: from.spaceId, environmentId: from.environmentId }, null, undefined);
+        if (!sid) return;
+        await api.sendMessage(sid, msg.text, msg.attachments ?? [], []);
       },
       async interruptSession(id) { await api.interruptSession(id); },
       /**

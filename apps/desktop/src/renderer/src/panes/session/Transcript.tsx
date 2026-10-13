@@ -259,7 +259,7 @@ function AssistantMessage({ text, streaming, enter, cwd, actions = false, onRetr
 /** Scrolling message list. Follows the bottom while the reader is near it; otherwise offers a "new messages" pill.
  *  Content lives in a centered 680px `.transcript-col` so messages share rails with the prompter (§4);
  *  the scrollbar stays at the pane edge because `.transcript` itself is the scroller. */
-export function Transcript({ transcript, sessionStatus, onDecide, onRetry, onRate, onPath, visible = true, focused = false, cwd = null, sends = 0, mentionIds = NO_MENTIONS, appIcons = NO_APP_ICONS, onExpandPlan, onImplementWith, mode, eggs = false, packLabels = NO_PACK_LABELS, scrollKey = null, sessionId = null, onQuote, checkout = null, turnEditing = null, track = false, saved = NO_SAVED, onSave, reveal = null, onRevealed, onEarlier }: {
+export function Transcript({ transcript, sessionStatus, onDecide, onRetry, onRate, onPath, visible = true, focused = false, cwd = null, sends = 0, mentionIds = NO_MENTIONS, appIcons = NO_APP_ICONS, onExpandPlan, onImplementWith, mode, eggs = false, packLabels = NO_PACK_LABELS, scrollKey = null, sessionId = null, onQuote, checkout = null, turnEditing = null, track = false, saved = NO_SAVED, onSave, reveal = null, onRevealed, onEarlier, recover = null }: {
   transcript: TranscriptModel; sessionStatus: SessionStatus; onDecide: (requestId: string, d: PermissionDecision, answers?: AskAnswers) => void; visible?: boolean;
   /** Read the log further back than the transcript holds (`transcript.earlier`): the stretch before it,
    *  or back to `throughSeq` — a prompt asked for by its seq. Absent leaves the log where it starts. */
@@ -293,6 +293,10 @@ export function Transcript({ transcript, sessionStatus, onDecide, onRetry, onRat
    *  the turn that just finished, and a button on message three of forty would silently act on
    *  message forty instead. Absent in the read-only mounts the suite and the fork preview use. */
   onRetry?: () => void;
+  /** The one way out of a turn that ended in a failure, drawn on that failure's own card: "Try again"
+   *  for a blip, or the same question to an agent that can take it when this one is at its limit or
+   *  signed out (failure-cause.ts). Null draws nothing, which is right when no move here can help. */
+  recover?: { label: string; run: () => void } | null;
   /** Record what the reader made of one answer, or with null take an earlier verdict back. Absent
    *  means the thumbs are not drawn at all, rather than drawn dead. */
   onRate?: (messageId: string, rating: Rating | null) => void;
@@ -701,6 +705,12 @@ export function Transcript({ transcript, sessionStatus, onDecide, onRetry, onRat
               <div className="msg-error-body">
                 <ErrorText text={b.message} />
                 {b.fix?.command && <CommandCopy command={b.fix.command} />}
+                {/* Only on the failure that ended the log, and only once the session is still: the
+                    action names the turn that failed, and an older card's button would act on a
+                    newer one. */}
+                {recover && !busy && items.slice(i + 1).every((x) => x.kind === "block" && x.block.kind === "run") && (
+                  <span className="msg-error-actions"><button type="button" className="btn primary" onClick={recover.run}>{recover.label}</button></span>
+                )}
               </div>
             </div>;
             // The shimmer the reader was watching, settled: same verb, past tense, with the wait it

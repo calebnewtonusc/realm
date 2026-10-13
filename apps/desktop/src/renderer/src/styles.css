@@ -3998,6 +3998,8 @@ button.md-path { font: 12px var(--font-mono); padding: 1px 4px; border-radius: v
 /* The message and, when Realm knows one, the command that fixes it — stacked in one column beside
    the glyph so the command aligns with the sentence it answers rather than with the icon. */
 .msg-error-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+/* The failure's one way out (failure-cause.ts): set apart from the agent's words, at the card's start edge. */
+.msg-error-actions { display: flex; gap: 8px; }
 /* The command row carries the transcript's own frame rather than the error's red wash: it is the
    way out, not more of the fault. */
 .msg-error-body .install-cmd { background: var(--rl-panel); }

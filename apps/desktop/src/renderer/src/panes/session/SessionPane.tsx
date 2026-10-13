@@ -10,6 +10,7 @@ const EMPTY_COMMANDS: readonly UserCommand[] = Object.freeze([]);
 const NO_LINKS: LinkChip[] = [];
 import { spaceIsPlainFolder, useApp, type PickedAttachment } from "../../state/store";
 import { agentAvailability, isBlocked } from "../../state/agent-availability";
+import { failureAction, failureCause } from "./failure-cause";
 import type { PaneProps } from "../registry";
 import type { MenuItem } from "../../components/Menu";
 import { Composer } from "./Composer";
@@ -241,6 +242,8 @@ export function SessionPane({ item, visible, focused = false }: PaneProps) {
   const dequeuePrompt = useApp((s) => s.dequeuePrompt);
   const moveQueuedPrompt = useApp((s) => s.moveQueuedPrompt);
   const retryLastTurn = useApp((s) => s.retryLastTurn);
+  const askAnotherAgent = useApp((s) => s.askAnotherAgent);
+  const lastAgentKind = useApp((s) => s.lastAgentKind);
   const rateMessage = useApp((s) => s.rateMessage);
   const respondPermission = useApp((s) => s.respondPermission);
   const setParkedPermission = useApp((s) => s.setParkedPermission);
@@ -575,6 +578,14 @@ export function SessionPane({ item, visible, focused = false }: PaneProps) {
   // blocks the pane already holds, and a slice beside the transcript could only disagree with it.
   const todos = latestTodos(transcript.blocks);
   const blocked = isBlocked(availability) && status !== "running" && status !== "waiting_permission";
+  /* The way out of a failed turn, decided from the failure's own words and this agent's probe: the
+     newest thing in the log that is not the turn's closing line, when that is an error. */
+  const trailing = [...transcript.blocks].reverse().find((b) => b.kind !== "run" && b.kind !== "retrying");
+  const failure = trailing?.kind === "error" ? failureAction(failureCause(trailing.message), session.agentKind, agentProbe, lastAgentKind) : null;
+  const recover = peek || !failure ? null
+    : failure.kind === "retry"
+      ? { label: failure.label, run: () => { setSends((n) => n + 1); run(() => retryLastTurn(id)); } }
+      : { label: failure.label, run: () => run(() => askAnotherAgent(id, failure.agentKind)) };
   /* The prompter's `/` commands.
      Built here rather than in Composer for the same reason the prompt hint is: every one of them is
      already the pane's — they wrap handlers that exist a few lines below, so the list can never
@@ -661,6 +672,7 @@ export function SessionPane({ item, visible, focused = false }: PaneProps) {
         mentionIds={liveMentionIds} appIcons={appIcons}
         onDecide={(requestId, d, answers) => run(() => respondPermission(id, requestId, d, answers))}
         onRetry={() => { setSends((n) => n + 1); run(() => retryLastTurn(id)); }}
+        recover={recover}
         onRate={(messageId, rating) => run(() => rateMessage(id, messageId, rating))} />
       {peek
         ? <PeekBar spaceName={space?.name ?? "another space"} elsewhere={session.spaceId !== activeSpaceId} onOpen={() => run(() => openPeek())} />
