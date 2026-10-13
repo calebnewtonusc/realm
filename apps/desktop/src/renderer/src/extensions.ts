@@ -5,9 +5,9 @@ import { createElement, Fragment, type ComponentType } from "react";
  *
  * Realm (Carlton Aikins, github.com/31Carlton7/realm) renders nothing from here by itself. A host
  * that serves this renderer outside Electron registers before `main.tsx` runs, and its component
- * reads the same store every pane does (`useAppStore`). The Chewbacca glass is the one that does:
- * its agent tiles and stage are a layer over these panes, and this is the one place they plug in,
- * instead of replacing `StoreContext.Provider` from outside.
+ * reads the same store every pane does (`useAppStore`). The Chewbacca glass shows this app as it
+ * ships and registers nothing by default; its older tiles-and-story layer, kept behind an opt-in,
+ * plugs in here instead of replacing `StoreContext.Provider` from outside.
  */
 const mounted: ComponentType[] = [];
 
