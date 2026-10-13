@@ -594,6 +594,7 @@ export type Api = TeamApi & LabApi & {
   fileDiff(cwd: string, path: string, staged: boolean): Promise<FileDiff>;
   stagePaths(cwd: string, paths: string[]): Promise<void>;
   unstagePaths(cwd: string, paths: string[]): Promise<void>;
+  stageHunk(cwd: string, path: string, oldStart: number, newStart: number): Promise<{ state: "staged" } | { state: "stale"; reason: string }>;
   /** `workspace.ship` — commit, push and open a PR as one call. */
   ship(input: ShipInput): Promise<ShipResult>;
   /** `items.create` — used only for the diff pane's item, whose refId is an ENVIRONMENT id. */
@@ -2524,6 +2525,9 @@ export type AppState = TeamSlice & LabSlice & {
   loadPatch(cwd: string, path: string, staged: boolean): Promise<void>;
   stagePaths(cwd: string, paths: string[]): Promise<void>;
   unstagePaths(cwd: string, paths: string[]): Promise<void>;
+  /** Keep one hunk of an agent's change: stage it alone (`workspace.stageHunk`). A file that moved
+   *  since the pane drew it is redrawn and said so, never staged blind. */
+  stageHunk(cwd: string, path: string, oldStart: number, newStart: number): Promise<void>;
   setCommitMessage(cwd: string, text: string): void;
   /** Commit, push and open a PR as one action; stores the outcome for the pane to explain. */
   ship(input: ShipInput): Promise<void>;
@@ -7102,6 +7106,12 @@ export function createAppStore(api: Api): StoreApi<AppState> {
         // an expanded row cannot render the pre-staging hunks under the post-staging label.
         set({ patches: dropPatches(get().patches, cwd, paths) });
         await get().refreshDiff(cwd);
+      },
+      async stageHunk(cwd, path, oldStart, newStart) {
+        const r = await api.stageHunk(cwd, path, oldStart, newStart);
+        set({ patches: dropPatches(get().patches, cwd, [path]) });
+        await get().refreshDiff(cwd);
+        if (r.state === "stale") get().toast({ tone: "warning", text: `${r.reason} Pick the change again.` });
       },
       async unstagePaths(cwd, paths) {
         if (paths.length === 0) return;

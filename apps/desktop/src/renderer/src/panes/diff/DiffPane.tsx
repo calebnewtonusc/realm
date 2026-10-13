@@ -35,8 +35,12 @@ function FileRow({ cwd, file }: { cwd: string; file: DiffFile }) {
   const loadPatch = useApp((s) => s.loadPatch);
   const stagePaths = useApp((s) => s.stagePaths);
   const unstagePaths = useApp((s) => s.unstagePaths);
+  const stageHunk = useApp((s) => s.stageHunk);
   const run = useApp((s) => s.run);
   const bothSides = file.staged && file.unstaged;
+  // Per hunk only where git has hunks to apply: an untracked file is one whole addition, staged whole.
+  const onStageHunk = file.status === "untracked" || file.binary ? undefined
+    : (oldStart: number, newStart: number) => run(() => stageHunk(cwd, file.path, oldStart, newStart));
 
   useEffect(() => {
     if (!open) return;
@@ -70,7 +74,7 @@ function FileRow({ cwd, file }: { cwd: string; file: DiffFile }) {
       {open && (
         <div className="diff-body">
           {file.staged && <>{bothSides && <div className="diff-side">Staged</div>}<Patch patch={staged} /></>}
-          {file.unstaged && <>{bothSides && <div className="diff-side">Not staged</div>}<Patch patch={unstaged} /></>}
+          {file.unstaged && <>{bothSides && <div className="diff-side">Not staged</div>}<Patch patch={unstaged} onStageHunk={onStageHunk} /></>}
         </div>
       )}
     </div>

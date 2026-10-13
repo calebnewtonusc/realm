@@ -9,8 +9,11 @@ const MARK: Record<string, string> = { add: "+", del: "−", meta: "\\", context
  * One file's patch, unified — the diff pane's own view, and Code Review's when a split would be too
  * narrow to read. Renders nothing but lines: whoever draws it has already named the file and the
  * side, and a second header here would be noise.
+ *
+ * `onStageHunk` puts a Stage button on each hunk's head: the unstaged side of a tracked file in the
+ * diff pane, where keeping part of an agent's change is the question. Absent draws no button.
  */
-export function UnifiedPatch({ patch }: { patch: FileDiff | undefined }) {
+export function UnifiedPatch({ patch, onStageHunk }: { patch: FileDiff | undefined; onStageHunk?: (oldStart: number, newStart: number) => void }) {
   if (!patch) return <div className="diff-loading">Loading…</div>;
   if (patch.binary) return <div className="diff-note">Binary file — no preview.</div>;
   if (patch.hunks.length === 0) return <div className="diff-note">No textual changes.</div>;
@@ -18,7 +21,13 @@ export function UnifiedPatch({ patch }: { patch: FileDiff | undefined }) {
     <div className="diff-hunks">
       {patch.hunks.map((h, i) => (
         <div className="diff-hunk" key={`${h.oldStart}-${h.newStart}-${i}`}>
-          <div className="diff-hunk-head">@@ −{h.oldStart},{h.oldLines} +{h.newStart},{h.newLines} @@{h.header ? ` ${h.header}` : ""}</div>
+          <div className="diff-hunk-head">
+            <span className="diff-hunk-range">@@ −{h.oldStart},{h.oldLines} +{h.newStart},{h.newLines} @@{h.header ? ` ${h.header}` : ""}</span>
+            {onStageHunk && (
+              <button type="button" className="btn-quiet diff-hunk-stage" aria-label={`Stage the change at line ${h.newStart}`}
+                title="Stage only this change" onClick={() => onStageHunk(h.oldStart, h.newStart)}>Stage</button>
+            )}
+          </div>
           {h.lines.map((l, j) => (
             <div className="diff-line" data-kind={l.kind} key={j}>
               <span className="diff-gutter">{l.oldLine ?? ""}</span>

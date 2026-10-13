@@ -81,6 +81,22 @@ describe("DiffPane", () => {
     expect(within(added as HTMLElement).getByText("11")).toBeInTheDocument();
   });
 
+  it("stages one hunk by the starts it was drawn with, and offers no hunk button on an untracked file", async () => {
+    // Mutant: the hunk button calling stagePaths (the whole file), or drawn on an untracked file,
+    // whose one hunk git apply cannot take from a diff of the index.
+    const { api } = await mount(
+      { patches: { [`${CWD}|src/a.ts|false`]: patch("src/a.ts"), [`${CWD}|new.ts|false`]: patch("new.ts") } },
+      { [CWD]: summary([file("src/a.ts"), file("new.ts", { status: "untracked" })]) },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Expand src\/a\.ts/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Stage the change at line 10" }));
+    await waitFor(() => expect(api.calls).toContain(`stageHunk:${CWD}|src/a.ts|10|10`));
+    expect(api.calls.some((c) => c.startsWith("stage:"))).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /Expand new\.ts/ }));
+    await waitFor(() => expect(within(rowFor("new.ts")).getByText("new line")).toBeInTheDocument());
+    expect(within(rowFor("new.ts")).queryByRole("button", { name: /Stage the change/ })).toBeNull();
+  });
+
   it("shows a binary file's row without ever asking for its bytes", async () => {
     const { api } = await mount({ patches: { [`${CWD}|logo.png|false`]: patch("logo.png", { binary: true, hunks: [] }) } },
       { [CWD]: summary([file("logo.png", { binary: true, additions: 0, deletions: 0 })]) });

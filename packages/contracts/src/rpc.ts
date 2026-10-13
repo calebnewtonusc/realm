@@ -1524,6 +1524,12 @@ export const Methods = {
   },
   /** `git add` for exactly these paths — per file, not per hunk. See git-write.ts for why. */
   "workspace.stage": { params: z.object({ cwd: z.string(), paths: z.array(z.string()).min(1) }), result: z.object({ ok: z.literal(true) }) },
+  /** `git add` for one hunk of one file, named by its header's starts as `workspace.fileDiff` drew it.
+   *  `stale` when the file moved since and no hunk has those starts. Never touches the working tree. */
+  "workspace.stageHunk": {
+    params: z.object({ cwd: z.string(), path: z.string(), oldStart: z.number().int(), newStart: z.number().int() }),
+    result: z.discriminatedUnion("state", [z.object({ state: z.literal("staged") }), z.object({ state: z.literal("stale"), reason: z.string() })]),
+  },
   /** Take these paths back out of the index. Never touches the working tree. */
   "workspace.unstage": { params: z.object({ cwd: z.string(), paths: z.array(z.string()).min(1) }), result: z.object({ ok: z.literal(true) }) },
   /**

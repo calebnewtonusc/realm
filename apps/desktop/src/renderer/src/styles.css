@@ -7009,7 +7009,10 @@ select { appearance: none; padding-right: 22px;
    solid green for adds, BUI's red 45° hatch for deletes — with the gutter numbers taking the
    row's colour. The text itself stays ink (BUI colours the row, not the words). */
 .diff-hunks { background: var(--surface); box-shadow: var(--shadow-hairline); border-radius: var(--r-panel); overflow: auto; }
-.diff-hunk-head { padding: 3px 8px; font-family: var(--font-mono); font-size: 11px; color: var(--rl-text-faint); background: var(--inset); }
+.diff-hunk-head { display: flex; align-items: center; gap: 8px; padding: 3px 8px; font-family: var(--font-mono); font-size: 11px; color: var(--rl-text-faint); background: var(--inset); }
+.diff-hunk-range { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Stage one hunk: the same quiet control as the row's Stage, set in the UI face rather than the patch's. */
+.diff-hunk-stage { font-family: var(--font-ui, inherit); font-size: 12px; }
 .diff-line { position: relative; display: flex; align-items: baseline; font-family: var(--font-mono); font-size: 13px; line-height: 1.65; white-space: pre; }
 .diff-gutter { flex: none; width: 42px; padding-right: 8px; text-align: right; color: var(--rl-text-faint); font-size: 11px; user-select: none; }
 .diff-mark { flex: none; width: 14px; text-align: center; color: var(--rl-text-faint); user-select: none; }

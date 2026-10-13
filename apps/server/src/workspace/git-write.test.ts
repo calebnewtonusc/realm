@@ -500,3 +500,38 @@ exit 1`);
     } finally { rmSync(repo, { recursive: true, force: true }); }
   });
 });
+
+describe("stageHunk: keep one hunk of an agent's change", () => {
+  // Two hunks in one file, far enough apart that git keeps them separate: the top one worth keeping.
+  function twoHunks(): { repo: string; svc: GitWriteService } {
+    const repo = makeRepo();
+    writeFileSync(join(repo, "n.txt"), Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join("\n") + "\n");
+    git(repo, "add", "n.txt"); git(repo, "commit", "-qm", "notes");
+    const lines = readFileSync(join(repo, "n.txt"), "utf8").split("\n");
+    lines[1] = "line 2 KEEP"; lines[36] = "line 37 DROP";
+    writeFileSync(join(repo, "n.txt"), lines.join("\n"));
+    return { repo, svc: new GitWriteService() };
+  }
+  it("stages only the named hunk and leaves the working tree and the other hunk as they were", async () => {
+    const { repo, svc } = twoHunks();
+    const before = readFileSync(join(repo, "n.txt"), "utf8");
+    // Mutant: `git add` on the path, which stages DROP too.
+    expect(await svc.stageHunk(repo, "n.txt", 1, 1)).toEqual({ state: "staged" });
+    const cached = git(repo, "diff", "--cached");
+    expect(cached).toContain("+line 2 KEEP");
+    expect(cached).not.toContain("DROP");
+    expect(git(repo, "diff")).toContain("+line 37 DROP");
+    expect(readFileSync(join(repo, "n.txt"), "utf8")).toBe(before);
+  });
+  it("answers stale, staging nothing, when no hunk has the starts the pane drew", async () => {
+    const { repo, svc } = twoHunks();
+    // Mutant: falling back to the nearest hunk, which stages lines the reader never saw.
+    expect(await svc.stageHunk(repo, "n.txt", 5, 5)).toMatchObject({ state: "stale" });
+    expect(staged(repo)).toEqual([]);
+  });
+  it("refuses a path that leaves the checkout", async () => {
+    const { repo, svc } = twoHunks();
+    await expect(svc.stageHunk(repo, "../x.txt", 1, 1)).rejects.toThrow();
+  });
+});
+

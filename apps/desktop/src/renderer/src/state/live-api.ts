@@ -241,6 +241,7 @@ export const liveApi = (): Api => ({
   fileDiff: (cwd, path, staged) => rpc().call("workspace.fileDiff", { cwd, path, staged }),
   stagePaths: async (cwd, paths) => { await rpc().call("workspace.stage", { cwd, paths }); },
   unstagePaths: async (cwd, paths) => { await rpc().call("workspace.unstage", { cwd, paths }); },
+  stageHunk: (cwd, path, oldStart, newStart) => rpc().call("workspace.stageHunk", { cwd, path, oldStart, newStart }),
   ship: (input) => rpc().call("workspace.ship", input),
   listShips: (spaceId, cursor = null, limit) => rpc().call("ships.list", { spaceId, cursor, ...(limit !== undefined ? { limit } : {}) }),
   createItem: (spaceId, kind, title, refId) => rpc().call("items.create", { spaceId, kind, title, refId }),

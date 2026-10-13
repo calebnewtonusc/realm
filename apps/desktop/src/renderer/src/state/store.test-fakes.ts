@@ -1906,6 +1906,7 @@ export function fakeApi(overrides: FakeData = {}): FakeApi {
     },
     stagePaths: async (cwd, paths) => { calls.push(`stage:${cwd}|${paths.join(",")}`); },
     unstagePaths: async (cwd, paths) => { calls.push(`unstage:${cwd}|${paths.join(",")}`); },
+    stageHunk: async (cwd, path, oldStart, newStart) => { calls.push(`stageHunk:${cwd}|${path}|${oldStart}|${newStart}`); return { state: "staged" as const }; },
     ship: async (input) => {
       calls.push(`ship:${input.cwd}|commit=${input.commit}|msg=${input.message}|push=${input.push}|upstream=${input.setUpstream}|pr=${input.openPr}|env=${input.environmentId}`);
       await wait("ship");

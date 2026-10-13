@@ -175,6 +175,7 @@ export function registerMethods(d: Deps): void {
   // and the diff pane agree the moment an action finishes.
   const changed = (cwd: string) => { d.gitInfo.invalidate(cwd); rpc.broadcast("workspace.changed", { cwd }); };
   reg("workspace.stage", async (p) => { await d.gitWrite.stage(p.cwd, p.paths); changed(p.cwd); return { ok: true as const }; });
+  reg("workspace.stageHunk", async (p) => { const r = await d.gitWrite.stageHunk(p.cwd, p.path, p.oldStart, p.newStart); if (r.state === "staged") changed(p.cwd); return r; });
   reg("workspace.unstage", async (p) => { await d.gitWrite.unstage(p.cwd, p.paths); changed(p.cwd); return { ok: true as const }; });
   reg("workspace.ship", async (p) => {
     // Ship-log attribution (Plan 14 W1): the pane NAMES its environment; the row records that checkout

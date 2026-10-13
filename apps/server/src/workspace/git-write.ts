@@ -1,8 +1,11 @@
 import { execFile } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { CommitOutcome, PrOutcome, PushOutcome, ShipResult } from "@realm/contracts";
 import { RpcError } from "../store/rows";
 import { assertRepoRelative, parseStatus } from "./git-diff";
-import { gitCapture, gitReason, GIT_NETWORK_TIMEOUT_MS, type GitResult, type GitRun } from "./git-exec";
+import { gitCapture, gitReason, GIT_DIFF_FLAGS, GIT_NETWORK_TIMEOUT_MS, type GitResult, type GitRun } from "./git-exec";
 import { parseGitHubRemote } from "./github-remote";
 
 /** Running a program that is not git — `gh`, and only `gh`. Injectable so tests point at a stub
@@ -123,6 +126,48 @@ export class GitWriteService {
     }
     const r = await this.git(root, ["rm", "--cached", "-q", "-r", "--", ...paths]);
     if (r.code !== 0) throw new RpcError("GIT_UNSTAGE_FAILED", gitReason(r));
+  }
+
+  /**
+   * `git add` for ONE hunk of a file: the part of an agent's change worth keeping, without the rest.
+   *
+   * The hunk is named by its header's two starts, as `workspace.fileDiff` reported them, and found
+   * again in a fresh `git diff` of the file. If the file moved since the pane drew it, no hunk has
+   * those starts and the answer is `stale` — a value, not a throw: the pane redraws and the reader
+   * picks again, rather than staging lines they never saw. The patch goes to `git apply --cached`,
+   * which writes the index only. Like `stage`, nothing here touches the file on disk; the hunks left
+   * behind are exactly as they were, still unstaged.
+   */
+  async stageHunk(cwd: string, path: string, oldStart: number, newStart: number): Promise<{ state: "staged" } | { state: "stale"; reason: string }> {
+    this.checkPaths([path]);
+    const root = await this.root(cwd);
+    const d = await this.git(root, ["diff", ...GIT_DIFF_FLAGS, "--", path]);
+    if (d.code !== 0) throw new RpcError("GIT_STAGE_FAILED", gitReason(d));
+    const lines = d.stdout.split("\n");
+    const first = lines.findIndex((l) => l.startsWith("@@"));
+    if (first < 0) return { state: "stale", reason: "This file has no unstaged change left." };
+    const head = lines.slice(0, first);
+    const at = (l: string) => /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(l);
+    let start = -1;
+    for (let i = first; i < lines.length; i++) {
+      const m = at(lines[i]!);
+      if (m && Number(m[1]) === oldStart && Number(m[2]) === newStart) { start = i; break; }
+    }
+    if (start < 0) return { state: "stale", reason: "The file changed since this diff was drawn." };
+    let end = start + 1;
+    while (end < lines.length && !lines[end]!.startsWith("@@")) end++;
+    // A diff ends in a newline, so the last split piece is empty: keep the patch ending in one.
+    const body = lines.slice(start, end).filter((l, i, a) => !(i === a.length - 1 && l === ""));
+    const dir = await mkdtemp(join(tmpdir(), "realm-hunk-"));
+    try {
+      const file = join(dir, "hunk.patch");
+      await writeFile(file, [...head, ...body, ""].join("\n"));
+      const r = await this.git(root, ["apply", "--cached", "--whitespace=nowarn", file]);
+      if (r.code !== 0) throw new RpcError("GIT_STAGE_FAILED", gitReason(r));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+    return { state: "staged" };
   }
 
   private async hasHead(root: string): Promise<boolean> {
